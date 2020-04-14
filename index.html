@@ -226,7 +226,7 @@ auth.sendCode#a677244f
         </section>
         <section>
           <h2>TL Language. Схема. JSON</h2>
-          <pre><code class="hljs json" data-trim data-line-numbers>
+          <pre><code class="hljs json" data-trim data-line-numbers="1-11|2|4-9">
 {
   "id": "-1502141361",
   "method": "auth.sendCode",
@@ -250,7 +250,7 @@ auth.sendCode#a677244f
         </section>
         <section>
           <h2>Десериалайзер. uint32</h2>
-          <pre><code class="hljs javascript" data-trim data-line-numbers>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="1-14|14">
 const buffer = new ArrayBuffer(4);
 const dataView = new DataView(buffer);
 const byteView = new Uint8Array(buffer);
@@ -270,7 +270,7 @@ dataView.getUint32(0, true); // 0xffffffff
         <section>
           <h2>Десериалайзер. gzip</h2>
           <p>С остальными типами работем аналогично. Но, у нас может быть gzip</p>
-          <pre><code class="hljs javascript" data-trim data-line-numbers>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="1-11|3,11|4|1,5|6-10">
 const pako = require('pako');
 
 if (this.uint32() === 812830625) {
@@ -286,7 +286,7 @@ if (this.uint32() === 812830625) {
         </section>
         <section>
           <h2>API. Версионирование</h2>
-          <p>Первый запрос к API должен быть обёрнут в invokeWithLayer. У invokeWithLayer один параметр layer — это версия API</p>
+          <p>Первый запрос к API должен быть обёрнут в invokeWithLayer</p>
           <pre><code class="hljs json" data-trim data-line-numbers>
 {
   "id": "-627372787",
@@ -310,7 +310,7 @@ if (this.uint32() === 812830625) {
         <section>
           <h2>API. Обработка ответов</h2>
           <p>Связываем запрос и ответ через msg_id</p>
-          <pre><code class="hljs javascript" data-trim data-line-numbers>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="1-18|3-12|4-11|5|1,7-10|14-18|15-16|1,17">
 const messagesWaitResponse = {};
 
 function call() {
@@ -362,25 +362,25 @@ mtproto.call('help.getNearestDc').then(result => {
         </section>
         <section>
           <h2>Будущее</h2>
-          <p>30 апреля релиз версии 3.0.0</p>
+          <p class="fragment">30 апреля релиз версии <a href="https://github.com/alik0211/mtproto-core/milestone/2">3.0.0</a></p>
           <ol>
-            <li>Поддержка nodejs</li>
-            <li>Удобная работа со всеми датацентрами</li>
-            <li>Удобная работа с файлами</li>
+            <li class="fragment">Поддержка nodejs</li>
+            <li class="fragment">Удобная работа со всеми датацентрами</li>
+            <li class="fragment">Удобная работа с файлами</li>
           </ol>
         </section>
         <section>
           <h2>Благодарности ❤</h2>
           <ol>
-            <li>Андрею Ситнику за ретвит и dual-publish</li>
-            <li>Дмитрию Болдыреву за ссылку в библиотеке и effector</li>
-            <li>Игорю Жукову за web.telegram.org</li>
-            <li>Организаторам за возможность выступить</li>
+            <li><a href="https://github.com/ai">Андрею Ситнику</a> за ретвит и <a href="https://github.com/ai/dual-publish">dual-publish</a></li>
+            <li class="fragment"><a href="https://github.com/zerobias">Дмитрию Болдыреву</a> за ссылку<br>в <a href="https://github.com/zerobias/telegram-mtproto">telegram-mtproto</a> и <a href="https://github.com/zerobias/effector">effector</a></li>
+            <li class="fragment"><a href="https://github.com/zhukov">Игорю Жукову</a> за <a href="https://github.com/zhukov/webogram">web.telegram.org</a></li>
+            <li class="fragment">Организаторам за возможность выступить</li>
           </ol>
         </section>
         <section>
           <img src="images/qa.jpg" alt="Задавайте вопросы">
-          <p>Ссылки будут здесь:</p>
+          <p>Важные ссылки:</p>
           <ol>
             <li>ВКонтакте — <a href="https://vk.com/volgajs">vk.com/volgajs</a></li>
             <li>Telegram — <a href="https://t.me/volgajs">@volgajs</a></li>
