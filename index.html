@@ -1,0 +1,409 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>@mtproto/core: криптография, байты и боль</title>
+
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/black.css">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/atom-one-dark.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <h1>@mtproto/core: криптография, байты и боль</h1>
+        </section>
+        <section>
+          <h2>Обо мне</h2>
+          <p>Я — Гасымов Али. JavaScript разработчик. Делаю расширения для браузеров и приложения на реакте</p>
+          <p>Telegram — <a href="https://t.me/alik0211">@alik0211</a></p>
+          <p>Блог — <a href="https://www.gasymov.com/blog/">gasymov.com/blog</a></p>
+          <p>ВКонтакте — <a href="https://vk.com/alik0211">vk.com/alik0211</a></p>
+        </section>
+        <section>
+          <h2>Введение</h2>
+          <ol>
+            <li>Хочу сделать Телеграм клиент для браузера</li>
+            <li class="fragment">Читаю документацию</li>
+            <li class="fragment">Нужна реализация MTProto</li>
+            <li class="fragment"><a href="https://github.com/zerobias/telegram-mtproto">telegram-mtproto</a>, <a href="https://github.com/zhukov/webogram">web.telegram.org</a> и <a href="https://github.com/tdlib/td">TDLib</a></li>
+            <li class="fragment">Пришлось писать самому</li>
+          </ol>
+        </section>
+        <section>
+          <h2>Выбираем транспорт</h2>
+          <p>TCP, Websocket, <span class="fragment highlight-blue">Websocket over HTTPS</span>, HTTP, HTTPS</p>
+          <pre class="fragment"><code class="hljs javascript" data-trim data-line-numbers="1-12|1-7|8|10|12">
+const subdomainsMap = {
+  1: 'pluto',
+  2: 'venus',
+  3: 'aurora',
+  4: 'vesta',
+  5: 'flora',
+};
+const name = subdomainsMap[2];
+
+const url = `wss://${name}.web.telegram.org/apiws`;
+
+const socket = new WebSocket(url, 'binary');
+          </code></pre>
+        </section>
+        <section>
+          <h2>TL Language</h2>
+          <p>С помощью TL Language описываются все типы и методы. <span class="fragment">Сначала нам нужно научиться сериализовать базовые типы</span></p>
+        </section>
+        <section>
+          <h2>Сериализируем uint32</h2>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="1-14|1|2-3|4-5|7-9|11-12|14">
+const buffer = new ArrayBuffer(4);
+const dataView = new DataView(buffer);
+const byteView = new Uint8Array(buffer);
+console.log(`byteView:`, byteView);
+// Uint8Array(4) [0, 0, 0, 0]
+
+// От 0 до 0xffffffff
+// 0xffffffff === 4294967295
+dataView.setUint32(0, 0xffffffff, true);
+
+console.log(`byteView:`, byteView);
+// Uint8Array(4) [255, 255, 255, 255]
+
+dataView.getUint32(0, true); // 0xffffffff
+          </code></pre>
+        </section>
+        <section>
+          <h2>Сериализируем long1</h2>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="1-19|2-4|5-6|8|1,10-13|11-12,15-16|18-19">
+const bigInt = require('big-integer');
+const buffer = new ArrayBuffer(8);
+const dataView = new DataView(buffer);
+const byteView = new Uint8Array(buffer);
+console.log(`byteView:`, byteView);
+// Uint8Array(8) [0, 0, 0, 0, 0, 0, 0, 0]
+
+const long1 = '18446744073709551615';
+
+const {
+  quotient,
+  remainder
+} = bigInt(long1).divmod(bigInt(0x100000000));
+
+dataView.setUint32(0, remainder.toJSNumber(), true);
+dataView.setUint32(4, quotient.toJSNumber(), true);
+
+console.log(`byteView:`, byteView);
+// Uint8Array(8) [255, 255, 255, 255, 255, 255, 255, 255]
+          </code></pre>
+        </section>
+        <section>
+          <h2>Сериализируем long2</h2>
+          <pre><code class="hljs javascript" data-trim data-line-numbers="1-13|1-3|4-5|7|7,9-10|12-13">
+const buffer = new ArrayBuffer(8);
+const dataView = new DataView(buffer);
+const byteView = new Uint8Array(buffer);
+console.log(`byteView:`, byteView);
+// Uint8Array(8) [0, 0, 0, 0, 0, 0, 0, 0]
+
+const long2 = [0xffffffff, 0xffffffff];
+
+dataView.setUint32(0, long2[1], true);
+dataView.setUint32(4, long2[0], true);
+
+console.log(`byteView:`, byteView);
+// Uint8Array(8) [255, 255, 255, 255, 255, 255, 255, 255]
+          </code></pre>
+        </section>
+        <section>
+          <h2>Сериализируем bytes</h2>
+          <pre style="font-size: 18px;"><code class="hljs javascript" data-trim data-line-numbers="1-25|1-3|5|7-8|10-12|14-15|17-18|20-22|24-25">
+const byteView = new Uint8Array([
+  255, 255, 255, 255, 255, 255, 255, 255
+]);
+
+let offset = 0;
+
+// 'hello' -> [104, 101, 108, 108, 111]
+const bytes = new Uint8Array([104, 101, 108, 108, 111]);
+
+if (bytes.length &lt; 254) {
+  byteView[offset++] = bytes.length;
+}
+
+byteView.set(bytes, offset);
+offset += bytes.length;
+
+console.log(byteView);
+// Uint8Array(8) [5, 104, 101, 108, 108, 111, 255, 255]
+
+while (offset % 4 !== 0) {
+  byteView[offset++] = 0;
+}
+
+console.log(byteView);
+// Uint8Array(8) [5, 104, 101, 108, 108, 111, 0, 0]
+          </code></pre>
+        </section>
+        <section>
+          <h2>Из string в bytes</h2>
+          <pre><code class="hljs javascript" data-trim data-line-numbers>
+const string = 'hello';
+const encoder = new TextEncoder();
+const bytes = encoder.encode(string);
+console.log(bytes);
+// Uint8Array(5) [104, 101, 108, 108, 111]
+          </code></pre>
+        </section>
+        <section>
+          <h2>Ещё типы:</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Тип</th>
+                <th>Способ сериализации</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>int32</td>
+                <td><code>dataView.setInt32</code></td>
+              </tr>
+              <!-- <tr>
+                <td>int128, int256, int512</td>
+                <td><code>byteView.set</code></td>
+              </tr> -->
+              <tr>
+                <td>boolTrue</td>
+                <td><code>int32(0xbc799737)</code></td>
+              </tr>
+              <tr>
+                <td>boolFalse</td>
+                <td><code>int32(0x997275b5)</code></td>
+              </tr>
+              <tr>
+                <td>vector</td>
+                <td><code>int32(0x1cb5c415)</code> + <code>int32(vector_length)</code> + vector_items</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+        <section>
+          <h2>TL Language. Схема</h2>
+          <pre><code class="hljs plaintext" data-trim data-line-numbers>
+boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
+
+codeSettings#debebe83
+  flags:#
+  allow_flashcall:flags.0?true
+  current_number:flags.1?true
+  allow_app_hash:flags.4?true
+  = CodeSettings;
+
+---functions---
+
+auth.sendCode#a677244f
+  phone_number:string
+  api_id:int
+  api_hash:string
+  settings:CodeSettings
+  = auth.SentCode;
+          </code></pre>
+        </section>
+        <section>
+          <h2>TL Language. Схема. JSON</h2>
+          <pre><code class="hljs json" data-trim data-line-numbers>
+{
+  "id": "-1502141361",
+  "method": "auth.sendCode",
+  "params": [
+    { "name": "phone_number", "type": "string" },
+    { "name": "api_id", "type": "int" },
+    { "name": "api_hash", "type": "string" },
+    { "name": "settings", "type": "CodeSettings" },
+  ],
+  "type": "auth.SentCode",
+}
+          </code></pre>
+        </section>
+        <section>
+          <h2>Сериалайзер. Сложности</h2>
+          <ol>
+            <li>Забыли один байт — 💀</li>
+            <li>Сместились на один байт — 💀</li>
+          </ol>
+          <p>Сервер просто не поймёт наше сообщение и не ответит нам</p>
+        </section>
+        <section>
+          <h2>Десериалайзер. uint32</h2>
+          <pre><code class="hljs javascript" data-trim data-line-numbers>
+const buffer = new ArrayBuffer(4);
+const dataView = new DataView(buffer);
+const byteView = new Uint8Array(buffer);
+console.log(`byteView:`, byteView);
+// Uint8Array(4) [0, 0, 0, 0]
+
+// От 0 до 0xffffffff
+// 0xffffffff === 4294967295
+dataView.setUint32(0, 0xffffffff, true);
+
+console.log(`byteView:`, byteView);
+// Uint8Array(4) [255, 255, 255, 255]
+
+dataView.getUint32(0, true); // 0xffffffff
+          </code></pre>
+        </section>
+        <section>
+          <h2>Десериалайзер. gzip</h2>
+          <p>С остальными типами работем аналогично. Но, у нас может быть gzip</p>
+          <pre><code class="hljs javascript" data-trim data-line-numbers>
+const pako = require('pako');
+
+if (this.uint32() === 812830625) {
+  const gzipBytes = this.bytes();
+  const uncompressed = pako.inflate(gzipBytes);
+  const deserializer = new TLDeserializer(
+    uncompressed.buffer
+  );
+
+  return deserializer.predicate();
+}
+          </code></pre>
+        </section>
+        <section>
+          <h2>API. Версионирование</h2>
+          <p>Первый запрос к API должен быть обёрнут в invokeWithLayer. У invokeWithLayer один параметр layer — это версия API</p>
+          <pre><code class="hljs json" data-trim data-line-numbers>
+{
+  "id": "-627372787",
+  "method": "invokeWithLayer",
+  "params": [
+    { "name": "layer", "type": "int" },
+    { "name": "query", "type": "!X" }
+  ],
+  "type": "X"
+}
+          </code></pre>
+        </section>
+        <section>
+          <h2>API. Changelog</h2>
+          <img src="images/layers.jpg" alt="Мем про пропущенные версии" style="max-width: 45%;">
+        </section>
+        <section>
+          <h2>API. Последняя версия</h2>
+          <img src="images/still-layer.jpg" alt="Мем про последнюю версию" style="max-width: 75%;">
+        </section>
+        <section>
+          <h2>API. Обработка ответов</h2>
+          <p>Связываем запрос и ответ через msg_id</p>
+          <pre><code class="hljs javascript" data-trim data-line-numbers>
+const messagesWaitResponse = {};
+
+function call() {
+  return new Promise((resolve, reject) => {
+    const messageId = '123456';
+
+    this.messagesWaitResponse[messageId] = {
+      resolve,
+      reject,
+    };
+  });
+}
+
+function handleMessage(message) {
+  // message.req_msg_id === '123456'
+  const messageId = message.req_msg_id;
+  this.messagesWaitResponse[messageId].resolve(message);
+}
+          </code></pre>
+        </section>
+        <section>
+          <h2>Тесты <span class="fragment">в браузере</span></h2>
+          <p class="fragment"><a href="https://github.com/developit/karmatic">karmatic</a><span class="fragment"> — это игрушка дьявола</span></p>
+          <p class="fragment">Лучше просто использовать karma и jasmine</p>
+        </section>
+        <section>
+          <h2>Библиотека @mtproto/core</h2>
+          <p>GitHub — <a href="https://github.com/alik0211/mtproto-core">github.com/alik0211/mtproto-core</a></p>
+          <pre><code class="hljs javascript" data-trim data-line-numbers>
+const { MTProto } = require('@mtproto/core');
+
+const api_id = 'YOU_API_ID';
+const api_hash = 'YOU_API_HASH';
+
+// 1. Create an instance
+const mtproto = new MTProto({
+  api_id,
+  api_hash,
+
+  // Use test servers
+  test: true,
+});
+
+// 2. Get the user country code
+mtproto.call('help.getNearestDc').then(result => {
+  console.log(`country:`, result.country);
+});
+          </code></pre>
+        </section>
+        <section>
+          <h2>Будущее</h2>
+          <p>30 апреля релиз версии 3.0.0</p>
+          <ol>
+            <li>Поддержка nodejs</li>
+            <li>Удобная работа со всеми датацентрами</li>
+            <li>Удобная работа с файлами</li>
+          </ol>
+        </section>
+        <section>
+          <h2>Благодарности ❤</h2>
+          <ol>
+            <li>Андрею Ситнику за ретвит и dual-publish</li>
+            <li>Дмитрию Болдыреву за ссылку в библиотеке и effector</li>
+            <li>Игорю Жукову за web.telegram.org</li>
+            <li>Организаторам за возможность выступить</li>
+          </ol>
+        </section>
+        <section>
+          <img src="images/qa.jpg" alt="Задавайте вопросы">
+          <p>Ссылки будут здесь:</p>
+          <ol>
+            <li>ВКонтакте — <a href="https://vk.com/volgajs">vk.com/volgajs</a></li>
+            <li>Telegram — <a href="https://t.me/volgajs">@volgajs</a></li>
+          </ol>
+        </section>
+      </div>
+    </div>
+
+    <script src="js/reveal.js"></script>
+
+    <script>
+      // More info about config & dependencies:
+      // - https://github.com/hakimel/reveal.js#configuration
+      // - https://github.com/hakimel/reveal.js#dependencies
+      Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+
+        dependencies: [
+          { src: 'plugin/highlight/highlight.js' },
+          { src: 'plugin/notes/notes.js', async: true }
+        ]
+      });
+    </script>
+  </body>
+</html>
